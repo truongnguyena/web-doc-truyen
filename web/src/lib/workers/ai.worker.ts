@@ -19,7 +19,6 @@ interface WorkerResult {
 }
 
 // API URLs (dùng sau)
-const AI_BACKEND_URL = process.env.NEXT_PUBLIC_AI_BACKEND_URL || 'http://localhost:8080/api/ai';
 
 // Khởi tạo Tesseract Worker
 async function initTesseract() {

@@ -7,7 +7,10 @@ interface MangaProcessorProps {
     panels: number[];
     classification: {
       type: string;
+      sentiment: number;
       nsfw: boolean;
+      genres: string[];
+      metadata: Record<string, string>;
     };
   }) => void;
 }
@@ -16,6 +19,15 @@ export function MangaProcessor({ onProcess }: MangaProcessorProps) {
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
+  // Define the expected classification result type
+  interface ClassificationResult {
+    type: string;
+    sentiment: number;
+    nsfw: boolean;
+    genres: string[];
+    metadata: Record<string, string>;
+  }
+
   const { processImage, classifyContent } = useAIProcessing();
 
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -47,21 +59,33 @@ export function MangaProcessor({ onProcess }: MangaProcessorProps) {
       setProgress(30);
       const textResult = await processImage(imageData, 'RECOGNIZE_TEXT');
       if (!textResult.success) throw new Error(textResult.error);
+      const textForClassification = typeof textResult.result === 'string' ? textResult.result : '';
+      const classificationResult = await classifyContent(textForClassification);
 
-      // Phát hiện panels
+      // Detect panels in the image
       setProgress(60);
       const panelsResult = await processImage(imageData, 'DETECT_PANELS');
-      if (!panelsResult.success) throw new Error(panelsResult.error);
 
-      // Phân loại nội dung
-      setProgress(90);
-      const classificationResult = await classifyContent(textResult.result);
-      if (!classificationResult.success) throw new Error(classificationResult.error);
+      const classification: ClassificationResult =
+        classificationResult.result &&
+        typeof (classificationResult.result as ClassificationResult).type === 'string' &&
+        typeof (classificationResult.result as ClassificationResult).nsfw === 'boolean' &&
+        typeof (classificationResult.result as ClassificationResult).sentiment === 'number' &&
+        Array.isArray((classificationResult.result as ClassificationResult).genres) &&
+        typeof (classificationResult.result as ClassificationResult).metadata === 'object'
+          ? (classificationResult.result as ClassificationResult)
+          : {
+              type: '',
+              nsfw: false,
+              sentiment: 0,
+              genres: [],
+              metadata: {},
+            };
 
       onProcess({
-        text: textResult.result,
-        panels: panelsResult.result,
-        classification: classificationResult.result,
+        text: typeof textResult.result === 'string' ? textResult.result : '',
+        panels: Array.isArray(panelsResult.result) ? panelsResult.result : [],
+        classification,
       });
 
       setProgress(100);
