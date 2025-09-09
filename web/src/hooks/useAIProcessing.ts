@@ -2,7 +2,17 @@ import { useCallback, useEffect, useRef } from 'react';
 
 interface AIWorkerResult {
   success: boolean;
-  result?: any;
+  result?: {
+    text?: string;
+    panels?: number[];
+    classification?: {
+      type: string;
+      sentiment: number;
+      nsfw: boolean;
+      genres: string[];
+      metadata: Record<string, string>;
+    };
+  };
   error?: string;
 }
 

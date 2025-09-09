@@ -4,26 +4,27 @@ import Tesseract from 'tesseract.js';
 
 interface WorkerResult {
   success: boolean;
-  result?: any;
+  result?: {
+    text?: string;
+    panels?: number[];
+    classification?: {
+      type: string;
+      sentiment: number;
+      nsfw: boolean;
+      genres: string[];
+      metadata: Record<string, string>;
+    };
+  };
   error?: string;
 }
 
-// API URLs
-const AI_BACKEND_URL = 'http://localhost:8080/api/ai';
-
-// Khởi tạo TensorFlow
-async function initTensorFlow() {
-  await tf.ready();
-  // Load pretrained model cho manga detection
-  const model = await tf.loadGraphModel('/models/manga-detector/model.json');
-  return model;
-}
+// API URLs (dùng sau)
+const AI_BACKEND_URL = process.env.NEXT_PUBLIC_AI_BACKEND_URL || 'http://localhost:8080/api/ai';
 
 // Khởi tạo Tesseract Worker
 async function initTesseract() {
   const worker = await Tesseract.createWorker();
-  await worker.loadLanguage('vie+jpn+chi_tra');
-  await worker.initialize('vie+jpn+chi_tra');
+  await worker.reinitialize('vie+jpn+chi_tra');
   return worker;
 }
 
@@ -40,7 +41,9 @@ async function recognizeText(imageData: ImageData): Promise<WorkerResult> {
     
     return {
       success: true,
-      result: result.data.text
+      result: {
+        text: result.data.text
+      }
     };
   } catch (error) {
     return {
@@ -63,8 +66,9 @@ async function detectPanels(imageData: ImageData): Promise<WorkerResult> {
         new Float32Array([-1, -1, -1, -1, 8, -1, -1, -1, -1]),
         [3, 3, 1, 1]
       );
+      const expanded = tf.expandDims(grayscale) as tf.Tensor4D;
       return tf.conv2d(
-        grayscale.expandDims(0),
+        expanded,
         kernel,
         1,
         'same'
@@ -77,7 +81,9 @@ async function detectPanels(imageData: ImageData): Promise<WorkerResult> {
 
     return {
       success: true,
-      result: Array.from(edgesData)
+      result: {
+        panels: Array.from(edgesData)
+      }
     };
   } catch (error) {
     return {
@@ -96,7 +102,7 @@ async function classifyContent(text: string): Promise<WorkerResult> {
     // Phân tích sentiment
     const sentiment = await tf.tidy(() => {
       const encoded = tf.tensor1d(tokens.map(t => t.length));
-      return encoded.mean().arraySync();
+      return encoded.mean().dataSync()[0];
     });
     
     // Phân loại thể loại
@@ -105,13 +111,13 @@ async function classifyContent(text: string): Promise<WorkerResult> {
     return {
       success: true,
       result: {
-        tokens,
-        type: detectMangaType(text),
-        sentiment,
-        nsfw: checkNSFW(text),
-        genres,
-        metadata: extractMetadata(text)
-      }
+        classification: {
+          type: detectMangaType(text),
+          sentiment,
+          nsfw: checkNSFW(text),
+          genres,
+          metadata: extractMetadata(text)
+        }}
     };
   } catch (error) {
     return {
@@ -140,7 +146,7 @@ function detectGenres(text: string): string[] {
   };
   
   return Object.entries(genreKeywords)
-    .filter(([_, keywords]) => 
+    .filter(([, keywords]) =>
       keywords.some(keyword => 
         text.toLowerCase().includes(keyword)
       )
