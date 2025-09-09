@@ -1,0 +1,16 @@
+source 'https://rubygems.org'
+
+gem 'rails', '~> 7.1.0'
+gem 'pg'
+gem 'puma'
+gem 'jwt'
+gem 'bcrypt'
+gem 'rack-cors'
+gem 'sidekiq'
+gem 'redis'
+
+group :development, :test do
+  gem 'rspec-rails'
+  gem 'factory_bot_rails'
+  gem 'faker'
+end

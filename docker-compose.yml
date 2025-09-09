@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  # Frontend
+  nextjs:
+    build: ./web
+    ports:
+      - "3000:3000"
+    environment:
+      - GO_API_URL=http://go-api:8080
+      - RUBY_API_URL=http://ruby-api:3001
+      - PHP_API_URL=http://php-api:8000
+
+  # Go API Service
+  go-api:
+    build: ./services/go-api
+    ports:
+      - "8080:8080"
+    environment:
+      - DB_HOST=postgres
+      - REDIS_HOST=redis
+    depends_on:
+      - postgres
+      - redis
+
+  # Ruby API Service
+  ruby-api:
+    build: ./services/ruby-api
+    ports:
+      - "3001:3000"
+    environment:
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/manga_users
+      - REDIS_URL=redis://redis:6379/1
+    depends_on:
+      - postgres
+      - redis
+
+  # PHP API Service
+  php-api:
+    build: ./services/php-api
+    ports:
+      - "8000:80"
+    environment:
+      - DATABASE_URL=mysql://root:root@mysql:3306/manga_crawler
+    depends_on:
+      - mysql
+      - rabbitmq
+
+  # Databases
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  mysql:
+    image: mysql:8
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=manga_crawler
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  # Cache & Message Queue
+  redis:
+    image: redis:7
+    volumes:
+      - redis_data:/data
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+volumes:
+  postgres_data:
+  mysql_data:
+  redis_data:
