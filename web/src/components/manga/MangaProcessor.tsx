@@ -1,5 +1,5 @@
-import React, { useCallback, useRef, useState } from 'react';
 import { useAIProcessing } from '@/hooks/useAIProcessing';
+import React, { useCallback, useRef, useState } from 'react';
 
 interface MangaProcessorProps {
   onProcess: (result: {
